@@ -45,6 +45,10 @@ defaults:
     recexp: 1.0
     chunksize: 1024
 
+  exploration:
+    method: entropy
+    beta: 0.1
+
   run:
     steps: 1e10
     duration: 0
