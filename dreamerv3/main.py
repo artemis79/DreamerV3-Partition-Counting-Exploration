@@ -15,6 +15,7 @@ import numpy as np
 import portal
 import ruamel.yaml as yaml
 
+from embodied.core.counts import Counts
 
 def main(argv=None):
   from .agent import Agent
@@ -65,10 +66,21 @@ def main(argv=None):
       replay_context=config.replay_context,
   )
 
-  if config.script == 'train':
+  if config.script == 'train' and config.exploration.method == 'counts':
     embodied.run.train(
         bind(make_agent, config),
         bind(make_replay, config, 'replay'),
+        bind(make_counts, config),
+        bind(make_env, config),
+        bind(make_stream, config),
+        bind(make_logger, config),
+        args)
+
+  if config.script == 'train' and not config.exploration.method == 'counts':
+    embodied.run.train(
+        bind(make_agent, config),
+        bind(make_replay, config, 'replay'),
+        None,
         bind(make_env, config),
         bind(make_stream, config),
         bind(make_logger, config),
@@ -179,6 +191,12 @@ def make_logger(config):
   logger = elements.Logger(step, outputs, multiplier)
   return logger
 
+
+def make_counts(config):
+  env = make_env(config, 0)
+  act_space = {k: v for k, v in env.act_space.items() if k != 'reset'}
+  env.close()
+  return embodied.core.counts.Counts(act_space, config.agent.dyn.rssm.stoch, config.agent.dyn.rssm.classes, config.exploration.beta)
 
 def make_replay(config, folder, mode='train'):
   batlen = config.batch_length if mode == 'train' else config.report_length
