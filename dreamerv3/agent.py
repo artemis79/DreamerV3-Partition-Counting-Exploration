@@ -10,6 +10,7 @@ import ninjax as nj
 import numpy as np
 import optax
 
+
 from . import rssm
 
 f32 = jnp.float32
@@ -34,7 +35,6 @@ class Agent(embodied.jax.Agent):
     self.obs_space = obs_space
     self.act_space = act_space
     self.config = config
-
     exclude = ('is_first', 'is_last', 'is_terminal', 'reward')
     enc_space = {k: v for k, v in obs_space.items() if k not in exclude}
     dec_space = {k: v for k, v in obs_space.items() if k not in exclude}
@@ -112,6 +112,18 @@ class Agent(embodied.jax.Agent):
   def init_report(self, batch_size):
     return self.init_policy(batch_size)
 
+
+  ## TODO: Check this function
+  # def get_stochastic_state(self, carry, obs):
+  #   (enc_carry, dyn_carry, dec_carry, prevact) = carry
+  #   kw = dict(training=False, single=True)
+  #   reset = obs['is_first']
+  #   enc_carry, enc_entry, tokens = self.enc(enc_carry, obs, reset, **kw)
+  #   dyn_carry, dyn_entry, feat = self.dyn.observe(
+  #       dyn_carry, tokens, prevact, reset, **kw)
+  #   return feat['stoch']
+
+
   def policy(self, carry, obs, mode='train'):
     (enc_carry, dyn_carry, dec_carry, prevact) = carry
     kw = dict(training=False, single=True)
@@ -119,6 +131,7 @@ class Agent(embodied.jax.Agent):
     enc_carry, enc_entry, tokens = self.enc(enc_carry, obs, reset, **kw)
     dyn_carry, dyn_entry, feat = self.dyn.observe(
         dyn_carry, tokens, prevact, reset, **kw)
+    print('DYN', dyn_carry, dyn_entry, tokens, prevact.keys())
     dec_entry = {}
     if dec_carry:
       dec_carry, dec_entry, recons = self.dec(dec_carry, feat, reset, **kw)
