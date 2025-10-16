@@ -1,3 +1,4 @@
+from math import log
 import time
 
 import cloudpickle
@@ -48,12 +49,12 @@ class Driver:
   def on_step(self, callback):
     self.callbacks.append(callback)
 
-  def __call__(self, policy, steps=0, episodes=0):
+  def __call__(self, policy, intrinsic_reward=None, steps=0, episodes=0):
     step, episode = 0, 0
     while step < steps or episode < episodes:
-      step, episode = self._step(policy, step, episode)
+      step, episode = self._step(policy, intrinsic_reward, step, episode)
 
-  def _step(self, policy, step, episode):
+  def _step(self, policy, intrinsic_reward, step, episode):
     acts = self.acts
     assert all(len(x) == self.length for x in acts.values())
     assert all(isinstance(v, np.ndarray) for v in acts.values())
@@ -65,9 +66,17 @@ class Driver:
       obs = [env.step(act) for env, act in zip(self.envs, acts)]
     obs = {k: np.stack([x[k] for x in obs]) for k in obs[0].keys()}
     logs = {k: v for k, v in obs.items() if k.startswith('log/')}
-    obs = {k: v for k, v in obs.items() if not k.startswith('log/')}
+    obs = {k: v for k, v in obs.items() if not k.startswith('log/')}    
     assert all(len(x) == self.length for x in obs.values()), obs
     self.carry, acts, outs = policy(self.carry, obs, **self.kwargs)
+
+    ## TODO: This is where I should add the intrinsic reward
+    if intrinsic_reward:
+      intrinsic_reward = intrinsic_reward(int(acts['action']), outs['dyn/stoch'])
+      logs['log/reward'] = intrinsic_reward + logs['log/reward']
+    
+    print('logs', logs)
+
     assert all(k not in acts for k in outs), (
         list(outs.keys()), list(acts.keys()))
     if obs['is_last'].any():
@@ -75,6 +84,7 @@ class Driver:
       acts = {k: self._mask(v, mask) for k, v in acts.items()}
     self.acts = {**acts, 'reset': obs['is_last'].copy()}
     trans = {**obs, **acts, **outs, **logs}
+    # print('TRANS', trans)
     for i in range(self.length):
       trn = elements.tree.map(lambda x: x[i], trans)
       [fn(trn, i, **self.kwargs) for fn in self.callbacks]

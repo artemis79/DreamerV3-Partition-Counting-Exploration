@@ -6,11 +6,14 @@ import embodied
 import numpy as np
 
 
-def train(make_agent, make_replay, make_env, make_stream, make_logger, args):
+def train(make_agent, make_replay, make_counts, make_env, make_stream, make_logger, args):
 
   agent = make_agent()
   replay = make_replay()
   logger = make_logger()
+  counts = None
+  if make_counts:
+    counts = make_counts()
 
   logdir = elements.Path(args.logdir)
   step = logger.step
@@ -60,6 +63,8 @@ def train(make_agent, make_replay, make_env, make_stream, make_logger, args):
   driver.on_step(lambda tran, _: policy_fps.step())
   driver.on_step(replay.add)
   driver.on_step(logfn)
+  if counts:
+    driver.on_step(counts.counts_add)
 
   stream_train = iter(agent.stream(make_stream(replay, 'train')))
   stream_report = iter(agent.stream(make_stream(replay, 'report')))
@@ -94,7 +99,10 @@ def train(make_agent, make_replay, make_env, make_stream, make_logger, args):
   driver.reset(agent.init_policy)
   while step < args.steps:
 
-    driver(policy, steps=10)
+    if counts:
+      driver(policy, intrinsic_reward=counts.get_intrinsic_reward, steps=10)
+    else:
+      driver(policy, intrinsic_reward=None, steps=10)
 
     if should_report(step) and len(replay):
       agg = elements.Agg()
