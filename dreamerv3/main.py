@@ -76,7 +76,7 @@ def main(argv=None):
         bind(make_logger, config),
         args)
 
-  if config.script == 'train' and not config.exploration.method == 'counts':
+  elif config.script == 'train' and not config.exploration.method == 'counts':
     embodied.run.train(
         bind(make_agent, config),
         bind(make_replay, config, 'replay'),
@@ -267,7 +267,7 @@ def make_env(config, index, **overrides):
 def wrap_env(env, config):
   for name, space in env.act_space.items():
     if not space.discrete:
-      env = embodied.wrappers.NormalizeAction(env, name)
+      env = embodied.wrappers.NormalizeAction(env, name)  
   env = embodied.wrappers.UnifyDtypes(env)
   env = embodied.wrappers.CheckSpaces(env)
   for name, space in env.act_space.items():
